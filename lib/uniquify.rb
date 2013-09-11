@@ -52,10 +52,8 @@ module Uniquify
   end
 end
 
-module Uniquify
-  class Utils
-    include Uniquify
-  end
+class Uniquify
+  include Uniquify
 end
 
 class ActiveRecord::Base
