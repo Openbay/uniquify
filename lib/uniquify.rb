@@ -1,47 +1,61 @@
+# NOTE AB: Removed the ability to run custom blocks and added ability to omit
+# certain characters from the character library.
+#
 module Uniquify
   def self.included(base)
     base.extend ClassMethods
-  end
-
-  def ensure_unique(name)
-    begin
-      self[name] = yield
-    end while self.class.exists?(name => self[name])
+    base.include InstanceMethods
   end
 
   module ClassMethods
+    def uniquify(attrs, options={})
+      [attrs].flatten.each do |name|
+        validates_uniqueness_of name
+
+        before_validation :on => :create do |record|
+          record._ensure_unique(name) { Uniquify::Base.generate(options) }
+        end
+      end
+    end
+  end
+
+  module InstanceMethods
+    def _ensure_unique(name)
+      begin
+        self[name] = yield
+      end while self.class.exists?(name => self[name])
+    end
+  end
+
+  class Base
+    attr_accessor :options
+
+    def self.generate(options={})
+      new(options).generate
+    end
+
+    def initialize(options={})
+      @options = default_options.merge(options)
+      remove_omitted_chars
+    end
+
     def default_options
       { :length => 8, 
         :chars => ('a'..'z').to_a + ('0'..'9').to_a, 
         :omit => [] }
     end
 
-    def generate_code(opts={})
-      options = default_options.merge(opts)
+    def remove_omitted_chars
       options[:chars].reject!{|char| options[:omit].include?(char)}
-      Array.new(options[:length]) { options[:chars].to_a[rand(options[:chars].to_a.size)] }.join
     end
 
-    def uniquify(*args, &block)
-      options = default_options
-      options.merge!(args.pop) if args.last.kind_of? Hash
-      options[:chars].reject!{|char| options[:omit].include?(char)}
-      args.each do |name|
-        before_validation :on => :create do |record|
-          if block
-            record.ensure_unique(name, &block)
-          else
-            record.ensure_unique(name) do
-              Array.new(options[:length]) { options[:chars].to_a[rand(options[:chars].to_a.size)] }.join
-            end
-          end
-        end
-      end
+    def generate
+      Array.new(options[:length]) { random_char }.join
     end
 
+    def random_char
+      options[:chars].to_a[rand(options[:chars].to_a.size)]
+    end
   end
 end
 
-class ActiveRecord::Base
-  include Uniquify
-end
