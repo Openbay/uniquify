@@ -10,8 +10,6 @@ module Uniquify
   module ClassMethods
     def uniquify(attrs, options={})
       [attrs].flatten.each do |name|
-        validates_uniqueness_of name
-
         before_validation :on => :create do |record|
           record._ensure_unique(name) { Uniquify::Base.generate(options) }
         end
